@@ -14,7 +14,7 @@
 #define WIN_SIZE_W 800
 #define WIN_SIZE_H 600
 
-#define MAP_SIZE 450
+#define MAP_SIZE 128
 
 # define GLUT_WHEEL_UP 3
 # define GLUT_WHEEL_DOWN 4
@@ -328,7 +328,7 @@ void freeHeight(float ***height, int length){
 int main(int argc, char **argv) {
     
     createHeightMap(&height, MAP_SIZE, MAP_SIZE);
-    cpuFaultAlgorithm(height, MAP_SIZE, MAP_SIZE, 20);
+    cpuFaultAlgorithm(height, MAP_SIZE, MAP_SIZE, 250);
     
     /* Initialize GLUT state - glut will take any command line arguments that pertain to it or 
     X Windows - look at its documentation at http://reality.sgi.com/mjk/spec3/spec3.html */
