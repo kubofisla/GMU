@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 
 #include <GL/glut.h>    // Header File For The GLUT Library 
 #include <GL/glu.h>     // Header File For The GLu32 Library
@@ -14,7 +13,7 @@
 #define WIN_SIZE_W 800
 #define WIN_SIZE_H 600
 
-#define MAP_SIZE 128
+#define MAP_SIZE 64
 
 # define GLUT_WHEEL_UP 3
 # define GLUT_WHEEL_DOWN 4
@@ -163,26 +162,26 @@ void  DrawGLScene()// Vykreslování
         
 	// Sem kreslit
 	glPushMatrix();
-        for (int x = 0; x < MAP_SIZE-1; x++) {
-            for (int z = 0; z < MAP_SIZE-1; z++) {
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        for (int ix = 0; ix < MAP_SIZE-1; ix++) {
+            for (int iz = 0; iz < MAP_SIZE-1; iz++) {
                 //glColor3f(0.2f,1.0f,0.2f);		
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
                 glBegin(GL_QUADS);
                     glTexCoord2f(0.0f, 0.0f);
-                    glVertex3f( (float)x-HALF_SIZE, height[x][z]    , (float)z-HALF_SIZE );
+                    glVertex3f( (float)ix-HALF_SIZE, height[ix][iz]    , (float)iz-HALF_SIZE );
                     
                     glTexCoord2f(0.3f, 0.0f);
-                    glVertex3f( (float)(x+1)-HALF_SIZE, height[(x+1)][z]  , (float)z-HALF_SIZE );
+                    glVertex3f( (float)(ix+1)-HALF_SIZE, height[(ix+1)][iz]  , (float)iz-HALF_SIZE );
                     
                     glTexCoord2f(0.3f, 0.3f);
-                    glVertex3f( (float)(x+1)-HALF_SIZE, height[(x+1)][(z+1)],(float)(z + 1)-HALF_SIZE);
+                    glVertex3f( (float)(ix+1)-HALF_SIZE, height[(ix+1)][(iz+1)],(float)(iz + 1)-HALF_SIZE);
                     
                     glTexCoord2f(0.0f, 0.3f);
-                    glVertex3f( (float)x-HALF_SIZE, height[x][(z+1)]  ,(float) (z + 1)-HALF_SIZE);
+                    glVertex3f( (float)ix-HALF_SIZE, height[ix][(iz+1)]  ,(float) (iz + 1)-HALF_SIZE);
                 glEnd();
-				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             }
         }
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glPopMatrix();
 
     // we need to swap the buffer to display our drawing.
@@ -289,22 +288,13 @@ void cpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
 
 void gpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
 {
-    float v;
-	float a, b, d, c;
+	float v = 0.0f;
+	float a = 0.0f, b = 0.0f, d = 0.0f, c = 0.0f;
 	float displacement = 0.25;
     
-    for(int it = 0; it < iterationCount; it++){
-        //one iteration
-        v = rand();
-        a = sin(v);
-        b = cos(v);
-        d = sqrt((float)w*w + l*l);
-        // rand() / RAND_MAX gives a random number between 0 and 1.
-        // therefore c will be a random number between -d/2 and d/2
-        c = ((float)rand() / (float)RAND_MAX) * d - d/2;
 
-        faultFormationCl(a, b, c, displacement, w, l, matrix);
-    }
+	faultFormationCl(a, b, c, displacement, w, l, matrix, iterationCount);
+
 }
 
 
@@ -314,7 +304,10 @@ void createHeightMap(float ***height, int width, int length){
     for(int i = 0; i < length; i++)
     {
         (*height)[i] = (float *)malloc(width*sizeof(float));
+		memset((*height)[i], 0, width*sizeof(float));
     }
+
+
 }
 
 void freeHeight(float ***height, int length){
@@ -328,7 +321,7 @@ void freeHeight(float ***height, int length){
 int main(int argc, char **argv) {
     
     createHeightMap(&height, MAP_SIZE, MAP_SIZE);
-    gpuFaultAlgorithm(height, MAP_SIZE, MAP_SIZE, 250);
+    gpuFaultAlgorithm(height, MAP_SIZE, MAP_SIZE, 512);
     
     /* Initialize GLUT state - glut will take any command line arguments that pertain to it or 
     X Windows - look at its documentation at http://reality.sgi.com/mjk/spec3/spec3.html */
@@ -374,6 +367,6 @@ int main(int argc, char **argv) {
     /* Start Event Processing Engine */
     glutMainLoop();
 
-    freeHeight(&height, MAP_SIZE  );
+    //freeHeight(&height, MAP_SIZE  );
     return 1;
 }

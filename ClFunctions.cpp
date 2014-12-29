@@ -189,14 +189,14 @@ char* LoadProgSource(const char* cFilename)
     return cSourceString;
 }
 
-void faultFormationCl(float a, float b, float c, float d, int MATRIX_W, int MATRIX_H, float** height){
+void faultFormationCl(float a, float b, float c, float d, int MATRIX_W, int MATRIX_H, float** height, int iter){
     
     cl_int errNum;
     cl_int err_msg;
     cl_device_id gpu_device;
     
     myClLoadDevice(&gpu_device, MATRIX_W, MATRIX_H, &err_msg);
-	computeGpu(&gpu_device, MATRIX_W, MATRIX_H, a, b, c, d, &err_msg, &errNum, height);
+	computeGpu(&gpu_device, MATRIX_W, MATRIX_H, a, b, c, d, &err_msg, &errNum, height, iter);
 }
 
 void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int *err_msg){
@@ -285,9 +285,14 @@ void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int
     free(platforms);
 }
 
-void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, float b, float c, float displacement, cl_int *err_msg, cl_int *errNum, float** height)
+void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, float b, float c, float displacement, cl_int *err_msg, cl_int *errNum, float** height, int iteration)
 {
     cl_float *device_data = (cl_float *)malloc(sizeof(cl_float) * MATRIX_W * MATRIX_H);
+	memset(device_data, 0, MATRIX_H*MATRIX_W*sizeof(cl_float));
+
+	/*for (int i = 0; i < MATRIX_W * MATRIX_H; i++){
+		device_data[i] = 0.0f;
+	}*/
     
     cl_context context = NULL;
     cl_command_queue queue = NULL;
@@ -316,64 +321,76 @@ void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, f
 	(clGetProgramBuildInfo(program, *gpu_device, CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL));
 
 
+	for (int it = 0; it < iteration; it++){
+		//one iteration
+		float v = rand();
+		float a = sin(v);
+		float b = cos(v);
+		float d = sqrt((float)MATRIX_W*MATRIX_W + MATRIX_H*MATRIX_H);
+		// rand() / RAND_MAX gives a random number between 0 and 1.
+		// therefore c will be a random number between -d/2 and d/2
+		float c = ((float)rand() / (float)RAND_MAX) * d - d / 2;
 
-    // create kernel
-    cl_kernel kernel = clCreateKernel(program, "faultFormation", err_msg);
-	CheckOpenCLError(*err_msg, "clCreateKernel");
-    
-    /*Buffers*/
-    cl_mem h_buffer;
 
-	h_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE, MATRIX_H*MATRIX_W*sizeof(cl_float), NULL, errNum);
+		// create kernel
+		cl_kernel kernel = clCreateKernel(program, "faultFormation", err_msg);
+		CheckOpenCLError(*err_msg, "clCreateKernel");
 
-    cl_int matrix_width = MATRIX_W;
-    //cl_int matrix_height = MATRIX_H;
-    
-    cl_float a_param = a;
-	cl_float b_param = b;
-	cl_float c_param = c;
-	cl_float disp_param = displacement;
-       
-    /*Parametry*/
-    clSetKernelArg(kernel, 0, sizeof(h_buffer), &h_buffer);
-    clSetKernelArg(kernel, 1, sizeof(a_param), &a_param);
-    clSetKernelArg(kernel, 2, sizeof(b_param), &b_param);
-    clSetKernelArg(kernel, 3, sizeof(c_param), &c_param);
-    clSetKernelArg(kernel, 4, sizeof(disp_param), &disp_param);
-    clSetKernelArg(kernel, 5, sizeof(matrix_width), &matrix_width);
-    //clSetKernelArg(kernel, 6, sizeof(matrix_height), &matrix_height);
-    
-    cl_event kernel_event = clCreateUserEvent(context, err_msg);
-    CheckOpenCLError(*err_msg, "clCreateUserEvent kernel_event");
-    cl_event h_event = clCreateUserEvent(context, err_msg);
-    CheckOpenCLError(*err_msg, "clCreateUserEvent c_event");
-    
-    size_t local[2] = { 16, 16 };
-    size_t global[2] = { MATRIX_W, MATRIX_H };
+		/*Buffers*/
+		cl_mem h_buffer;
 
-    clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &kernel_event);
+		h_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, MATRIX_H*MATRIX_W*sizeof(cl_float), device_data, errNum);
 
-    clEnqueueReadBuffer(queue, h_buffer, CL_FALSE, 0, MATRIX_W*MATRIX_H*sizeof(cl_int), device_data, 0, NULL, &h_event);
+		cl_int matrix_width = MATRIX_W;
+		//cl_int matrix_height = MATRIX_H;
 
-    // synchronize queue
-    CheckOpenCLError(clFinish(queue), "clFinish");
-    
-    //copy result
-    for(int z = 0; z < MATRIX_H; z++){
-        for(int x = 0; x < MATRIX_W; x++)
-        {
-            height[z][x] = device_data[z*MATRIX_W+x];
-        }
-    }
-    
-    CheckOpenCLError(clReleaseKernel(kernel), "clReleaseKernel");
-    CheckOpenCLError(clReleaseProgram(program), "clReleaseProgram");
-    
-    clReleaseMemObject(h_buffer);
+		cl_float a_param = a;
+		cl_float b_param = b;
+		cl_float c_param = c;
+		cl_float disp_param = displacement;
 
-    // deallocate events
-    CheckOpenCLError(clReleaseEvent(kernel_event), "clReleaseEvent: kernel_event");
-    CheckOpenCLError(clReleaseEvent(h_event), "clReleaseEvent: h_event");
+		/*Parametry*/
+		clSetKernelArg(kernel, 0, sizeof(h_buffer), &h_buffer);
+		clSetKernelArg(kernel, 1, sizeof(a_param), &a_param);
+		clSetKernelArg(kernel, 2, sizeof(b_param), &b_param);
+		clSetKernelArg(kernel, 3, sizeof(c_param), &c_param);
+		clSetKernelArg(kernel, 4, sizeof(disp_param), &disp_param);
+		clSetKernelArg(kernel, 5, sizeof(matrix_width), &matrix_width);
+		//clSetKernelArg(kernel, 6, sizeof(matrix_height), &matrix_height);
+
+		cl_event kernel_event = clCreateUserEvent(context, err_msg);
+		CheckOpenCLError(*err_msg, "clCreateUserEvent kernel_event");
+		cl_event h_event = clCreateUserEvent(context, err_msg);
+		CheckOpenCLError(*err_msg, "clCreateUserEvent c_event");
+
+		size_t local[2] = { 16, 16 };
+		size_t global[2] = { MATRIX_W, MATRIX_H };
+
+		clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &kernel_event);
+
+		clEnqueueReadBuffer(queue, h_buffer, CL_FALSE, 0, MATRIX_W*MATRIX_H*sizeof(cl_int), device_data, 0, NULL, &h_event);
+
+		// synchronize queue
+		CheckOpenCLError(clFinish(queue), "clFinish");
+
+		CheckOpenCLError(clReleaseKernel(kernel), "clReleaseKernel");
+
+		clReleaseMemObject(h_buffer);
+
+		// deallocate events
+		CheckOpenCLError(clReleaseEvent(kernel_event), "clReleaseEvent: kernel_event");
+		CheckOpenCLError(clReleaseEvent(h_event), "clReleaseEvent: h_event");
+	}
+
+	//copy result
+	for (int z = 0; z < MATRIX_H; z++){
+		for (int x = 0; x < MATRIX_W; x++)
+		{
+			height[z][x] = device_data[z*MATRIX_W + x];
+		}
+	}
+
+	CheckOpenCLError(clReleaseProgram(program), "clReleaseProgram");
 
 	CheckOpenCLError(clReleaseCommandQueue(queue), "clReleaseCommandQueue");
 	CheckOpenCLError(clReleaseContext(context), "clReleaseContext");
