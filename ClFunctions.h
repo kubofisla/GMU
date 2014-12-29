@@ -11,6 +11,9 @@
 
 #define TMP_BUFFER_SIZE 4096
 
+
+#define _DEBUG 0
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -24,6 +27,7 @@
 #include <sys/time.h>
 #endif //WIN32
 
+double GetTime(void);
 void faultFormationCl(float a, float b, float c, float d, int MATRIX_W, int MATRIX_H, float** height, int iter);
 void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int *err_msg);
 void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, float b, float c, float displacement, cl_int *err_msg, cl_int *errNum, float** height, int iteration);

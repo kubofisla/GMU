@@ -138,15 +138,18 @@ void CheckOpenCLError(cl_int _ciErr, const char *_sMsg, ...)
     vsprintf (buffer, _sMsg, arg);
     va_end (arg);
 
-    if(_ciErr!=CL_SUCCESS) {
-        printf("%f: ERROR: %s: (%i)%s\n", GetTime(), buffer, _ciErr, CLErrorString(_ciErr));
-        system("PAUSE");
-        exit(1);
-    } else {
-        if(uiDebug>1) {
-            printf("%f:    OK: %s\n", GetTime(), buffer);
-        }
-    }
+	if (_DEBUG != 0){
+		if (_ciErr != CL_SUCCESS) {
+			printf("%f: ERROR: %s: (%i)%s\n", GetTime(), buffer, _ciErr, CLErrorString(_ciErr));
+			system("PAUSE");
+			exit(1);
+		}
+		else {
+			if (uiDebug > 1) {
+				printf("%f:    OK: %s\n", GetTime(), buffer);
+			}
+		}
+	}
 }
 
 char* LoadProgSource(const char* cFilename)
@@ -246,27 +249,27 @@ void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int
     
 
     for(int i = 0; i < platforms_count; i++)
-            {
-                    cl_uint tmp_devices_count;
-                    // Get platform devices count
-                    if((*err_msg = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &tmp_devices_count)) == CL_DEVICE_NOT_FOUND) continue;
-                    CheckOpenCLError(*err_msg,"clGetDeviceIDs");
-                    // Allocate space for devices
-                    tmp_devices = (cl_device_id *)malloc(sizeof(cl_device_id) * tmp_devices_count);
-                    // Get all platform devices
-                    if((*err_msg = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, tmp_devices_count, tmp_devices, 0)) == CL_DEVICE_NOT_FOUND) continue;
-                    CheckOpenCLError(*err_msg,"clGetDeviceIDs");
-                    for(int j = 0; j < tmp_devices_count; j++)
+    {
+            cl_uint tmp_devices_count;
+            // Get platform devices count
+            if((*err_msg = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &tmp_devices_count)) == CL_DEVICE_NOT_FOUND) continue;
+            CheckOpenCLError(*err_msg,"clGetDeviceIDs");
+            // Allocate space for devices
+            tmp_devices = (cl_device_id *)malloc(sizeof(cl_device_id) * tmp_devices_count);
+            // Get all platform devices
+            if((*err_msg = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, tmp_devices_count, tmp_devices, 0)) == CL_DEVICE_NOT_FOUND) continue;
+            CheckOpenCLError(*err_msg,"clGetDeviceIDs");
+            for(int j = 0; j < tmp_devices_count; j++)
+                    {
+                            // Get device type
+                            CheckOpenCLError(clGetDeviceInfo(tmp_devices[j], CL_DEVICE_TYPE, sizeof(cl_device_type), &device_type1, NULL),"clGetDeviceInfo");
+                            if (device_type1 == CL_DEVICE_TYPE_GPU)
                             {
-                                    // Get device type
-                                    CheckOpenCLError(clGetDeviceInfo(tmp_devices[j], CL_DEVICE_TYPE, sizeof(cl_device_type), &device_type1, NULL),"clGetDeviceInfo");
-                                    if (device_type1 == CL_DEVICE_TYPE_GPU)
-                                    {
-                                            *gpu_device = tmp_devices[j];
-                                    }
+                                    *gpu_device = tmp_devices[j];
                             }
-                    //free(tmp_devices);
-            }
+                    }
+            //free(tmp_devices);
+    }
 
     // check if device is correct
     cl_device_type device_type;
@@ -290,9 +293,6 @@ void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, f
     cl_float *device_data = (cl_float *)malloc(sizeof(cl_float) * MATRIX_W * MATRIX_H);
 	memset(device_data, 0, MATRIX_H*MATRIX_W*sizeof(cl_float));
 
-	/*for (int i = 0; i < MATRIX_W * MATRIX_H; i++){
-		device_data[i] = 0.0f;
-	}*/
     
     cl_context context = NULL;
     cl_command_queue queue = NULL;
@@ -320,6 +320,16 @@ void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, f
 
 	(clGetProgramBuildInfo(program, *gpu_device, CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL));
 
+	// create kernel
+	cl_kernel kernel = clCreateKernel(program, "faultFormation", err_msg);
+	CheckOpenCLError(*err_msg, "clCreateKernel");
+
+	//cl_event kernel_event = clCreateUserEvent(context, err_msg);
+	//CheckOpenCLError(*err_msg, "clCreateUserEvent kernel_event");
+	//cl_event h_event = clCreateUserEvent(context, err_msg);
+	//CheckOpenCLError(*err_msg, "clCreateUserEvent c_event");
+
+	double dtStart = GetTime();
 
 	for (int it = 0; it < iteration; it++){
 		//one iteration
@@ -330,11 +340,6 @@ void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, f
 		// rand() / RAND_MAX gives a random number between 0 and 1.
 		// therefore c will be a random number between -d/2 and d/2
 		float c = ((float)rand() / (float)RAND_MAX) * d - d / 2;
-
-
-		// create kernel
-		cl_kernel kernel = clCreateKernel(program, "faultFormation", err_msg);
-		CheckOpenCLError(*err_msg, "clCreateKernel");
 
 		/*Buffers*/
 		cl_mem h_buffer;
@@ -358,28 +363,18 @@ void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, f
 		clSetKernelArg(kernel, 5, sizeof(matrix_width), &matrix_width);
 		//clSetKernelArg(kernel, 6, sizeof(matrix_height), &matrix_height);
 
-		cl_event kernel_event = clCreateUserEvent(context, err_msg);
-		CheckOpenCLError(*err_msg, "clCreateUserEvent kernel_event");
-		cl_event h_event = clCreateUserEvent(context, err_msg);
-		CheckOpenCLError(*err_msg, "clCreateUserEvent c_event");
-
 		size_t local[2] = { 16, 16 };
 		size_t global[2] = { MATRIX_W, MATRIX_H };
 
-		clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, &kernel_event);
+		clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, NULL);
 
-		clEnqueueReadBuffer(queue, h_buffer, CL_FALSE, 0, MATRIX_W*MATRIX_H*sizeof(cl_int), device_data, 0, NULL, &h_event);
+		clEnqueueReadBuffer(queue, h_buffer, CL_FALSE, 0, MATRIX_W*MATRIX_H*sizeof(cl_int), device_data, 0, NULL, NULL);
 
 		// synchronize queue
 		CheckOpenCLError(clFinish(queue), "clFinish");
 
-		CheckOpenCLError(clReleaseKernel(kernel), "clReleaseKernel");
-
 		clReleaseMemObject(h_buffer);
 
-		// deallocate events
-		CheckOpenCLError(clReleaseEvent(kernel_event), "clReleaseEvent: kernel_event");
-		CheckOpenCLError(clReleaseEvent(h_event), "clReleaseEvent: h_event");
 	}
 
 	//copy result
@@ -390,6 +385,14 @@ void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, f
 		}
 	}
 
+	double dtStop = GetTime();
+	printf("Compute GPU time: %f\n", dtStop - dtStart);
+
+	// deallocate events
+	//CheckOpenCLError(clReleaseEvent(kernel_event), "clReleaseEvent: kernel_event");
+	//CheckOpenCLError(clReleaseEvent(h_event), "clReleaseEvent: h_event");
+
+	CheckOpenCLError(clReleaseKernel(kernel), "clReleaseKernel");
 	CheckOpenCLError(clReleaseProgram(program), "clReleaseProgram");
 
 	CheckOpenCLError(clReleaseCommandQueue(queue), "clReleaseCommandQueue");
