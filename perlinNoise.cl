@@ -40,23 +40,6 @@ float Interpolated_NoiseI(float x, float y, int freq){
 	return Cosine_Interpolate(i1, i2, fractional_Y);
 }
 
-float point_PerlinNoise(float x, float y, float persistence, int octaves, int ampMult){
-	float total = 0.0f;
-	float amplitude = 1;
-
-	for (int i = 0; i < octaves; i++)
-	{
-		float frequency = pow(2.0f, i);
-		amplitude *= persistence;
-		amplitude *= ampMult;
-
-		total = total + Interpolated_NoiseI(x/frequency, y/frequency, frequency) * amplitude;
-
-	}
-
-	return total;
-}
-
 __kernel void perlinNoise(__global float *h, float persistence, int octaves, int width, int length)
 {
 	int global_x = (int)get_global_id(0);
@@ -64,5 +47,15 @@ __kernel void perlinNoise(__global float *h, float persistence, int octaves, int
 
 	int index = global_x + width*global_y;
 
-	h[index] = point_PerlinNoise(width, length, persistence, octaves, 1);
+	float frequency;
+	float amplitude = 2.2f;
+
+	for (int i = 0; i < octaves; i++)
+	{
+		frequency = pow(2.0f, i);
+		amplitude *= persistence;
+
+		h[index] += Interpolated_NoiseI(global_x / frequency, global_y / frequency, frequency) * amplitude;
+
+	}
 }

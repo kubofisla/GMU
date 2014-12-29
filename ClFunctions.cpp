@@ -216,13 +216,15 @@ void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int
     platforms = (cl_platform_id *)malloc(sizeof(cl_platform_id) * platforms_count);
     // Get Platforms
     CheckOpenCLError(clGetPlatformIDs(platforms_count, platforms, NULL),"clGetPlatformIDs");
-    printf("Platforms:\n");
+	if (_DEBUG != 0)
+		printf("Platforms:\n");
     for(int i = 0; i < platforms_count; i++)
             {
                     cl_uint tmp_devices_count;
                     // Get platform name
                     CheckOpenCLError(clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, TMP_BUFFER_SIZE, tmp_buf, NULL),"clGetPlatformInfo");
-                    printf(" %d. platform name: %s.\n", i, tmp_buf);
+					if (_DEBUG != 0)
+						printf(" %d. platform name: %s.\n", i, tmp_buf);
                     // Get platform devices count
                     if((*err_msg = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &tmp_devices_count)) == CL_DEVICE_NOT_FOUND) continue;
                     CheckOpenCLError(*err_msg,"clGetDeviceIDs");
@@ -235,18 +237,14 @@ void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int
                             {
                                     // Get device name
                                     CheckOpenCLError(clGetDeviceInfo(tmp_devices[j], CL_DEVICE_NAME, TMP_BUFFER_SIZE, tmp_buf, NULL),"clGetDeviceInfo");
-                                    printf("  %d. device name: %s.\n", j, tmp_buf);
+									if (_DEBUG != 0)
+										printf("  %d. device name: %s.\n", j, tmp_buf);
                             }
                     free(tmp_devices);
             }
 
     *gpu_device = NULL;
-    cl_device_type device_type1;
-//    cl_platform_id platform;
-//    cl_uint devices_count;
-//    cl_device_id devicesId;
-
-    
+    cl_device_type device_type1;    
 
     for(int i = 0; i < platforms_count; i++)
     {
@@ -275,15 +273,17 @@ void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int
     cl_device_type device_type;
     CheckOpenCLError(clGetDeviceInfo(*gpu_device, CL_DEVICE_NAME, TMP_BUFFER_SIZE, tmp_buf, NULL), "clGetDeviceInfo");
     CheckOpenCLError(clGetDeviceInfo(*gpu_device, CL_DEVICE_TYPE, sizeof(cl_device_type), &device_type, NULL), "clGetDeviceInfo");
-    if(device_type == CL_DEVICE_TYPE_GPU)
-            {
-                    printf("\nSelected device type: Correct\n");
-            }
-    else
-            {
-                    printf("\nSelected device type: Incorrect\n");
-            }
-    printf("Selected device name: %s.\n", tmp_buf);
+	if (_DEBUG != 0){
+		if (device_type == CL_DEVICE_TYPE_GPU)
+		{
+			printf("\nSelected device type: Correct\n");
+		}
+		else
+		{
+			printf("\nSelected device type: Incorrect\n");
+		}
+		printf("Selected device name: %s.\n", tmp_buf);
+	}
 
     free(platforms);
 }
@@ -323,11 +323,6 @@ void computeFaultGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float
 	// create kernel
 	cl_kernel kernel = clCreateKernel(program, "faultFormation", err_msg);
 	CheckOpenCLError(*err_msg, "clCreateKernel");
-
-	//cl_event kernel_event = clCreateUserEvent(context, err_msg);
-	//CheckOpenCLError(*err_msg, "clCreateUserEvent kernel_event");
-	//cl_event h_event = clCreateUserEvent(context, err_msg);
-	//CheckOpenCLError(*err_msg, "clCreateUserEvent c_event");
 
 	double dtStart = GetTime();
 
@@ -388,10 +383,6 @@ void computeFaultGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float
 	double dtStop = GetTime();
 	printf("Compute GPU time: %f\n", dtStop - dtStart);
 
-	// deallocate events
-	//CheckOpenCLError(clReleaseEvent(kernel_event), "clReleaseEvent: kernel_event");
-	//CheckOpenCLError(clReleaseEvent(h_event), "clReleaseEvent: h_event");
-
 	CheckOpenCLError(clReleaseKernel(kernel), "clReleaseKernel");
 	CheckOpenCLError(clReleaseProgram(program), "clReleaseProgram");
 
@@ -416,6 +407,7 @@ void perlinNoiseCl(float persistence, int octaves, int MATRIX_W, int MATRIX_H, f
 void computePerlinGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float persistence, int octaves, cl_int *err_msg, cl_int *errNum, float** height)
 {
 	cl_float *device_data = (cl_float *)malloc(sizeof(cl_float) * MATRIX_W * MATRIX_H);
+	memset(device_data, 0, MATRIX_H*MATRIX_W*sizeof(cl_float));
 
 	cl_context context = NULL;
 	cl_command_queue queue = NULL;
@@ -430,10 +422,14 @@ void computePerlinGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, floa
 	cl_program program = clCreateProgramWithSource(context, 1, (const char **)&program_source, NULL, err_msg);
 	CheckOpenCLError(*err_msg, "clCreateProgramWithSource");
 
-	// build program
-	//CheckOpenCLError(clBuildProgram(program, 1, gpu_device, "", NULL, NULL), "clBuildProgram");
+	if (_DEBUG != 0) {
+		clBuildProgram(program, 1, gpu_device, "", NULL, NULL);
+	}
+	else{
+		// build program
+		CheckOpenCLError(clBuildProgram(program, 1, gpu_device, "", NULL, NULL), "clBuildProgram");
+	}
 
-	clBuildProgram(program, 1, gpu_device, "", NULL, NULL);
 	char *build_log;
 
 	size_t ret_val_size;
@@ -453,13 +449,13 @@ void computePerlinGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, floa
 	/*Buffers*/
 	cl_mem h_buffer;
 
-	h_buffer = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_COPY_HOST_PTR, MATRIX_H*MATRIX_W*sizeof(cl_float), device_data, errNum);
+	h_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, MATRIX_H*MATRIX_W*sizeof(cl_float), device_data, errNum);
 
 	cl_int matrix_width = MATRIX_W;
 	cl_int matrix_height = MATRIX_H;
 
 	cl_float persistence_param = persistence;
-	cl_float octaves_param = octaves;
+	cl_int octaves_param = octaves;
 
 	/*Parametry*/
 	clSetKernelArg(kernel, 0, sizeof(h_buffer), &h_buffer);

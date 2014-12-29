@@ -13,9 +13,10 @@
 #define WIN_SIZE_H 600
 
 #define MAP_SIZE 512
-#define ITERATIONS 256
+#define ITERATIONS 4096
 
 #define STEP 1
+#define DISPLACEMENT 0.20
 
 # define GLUT_WHEEL_UP 3
 # define GLUT_WHEEL_DOWN 4
@@ -42,9 +43,12 @@ float angle2=0.0;
 // actual vector representing the camera's direction
 float lx=0.0f,lz=-1.0f,ly=0.0f,lz2=-1.0f;
 // XZ position of the camera
-float x=0.0f,z=5.0f, y=0.0f;
+float x=0.0f,z=6.0f, y=10.0f;
 //starting z position
 float tz = -8.0f;
+
+int mapsize = MAP_SIZE;
+int iterations = ITERATIONS;
 
 
 //height matrix
@@ -231,14 +235,14 @@ void mouseButton(int button, int state, int x, int y) {
         }
 }
 
-void mouseMove(int x, int y) {
+void mouseMove(int mx, int my) {
 
 	// this will only be true when the left button is down
 	if (xOrigin >= 0) {
 
 		// update deltaAngle
-		deltaAngle = (x - xOrigin) * 0.002f;
-        gamaAngle = (y - yOrigin) * 0.002f;
+		deltaAngle = (mx - xOrigin) * 0.002f;
+        gamaAngle = (my - yOrigin) * 0.002f;
 
 		// update camera's direction
 		lx = sin(angle + deltaAngle);
@@ -251,37 +255,24 @@ void mouseMove(int x, int y) {
 	if (xOriginStraight >= 0) {
 
 		// update deltaAngle
-		stepX -= (x-xOriginStraight) * 0.002f;
-        stepY += (y-yOriginStraight) * 0.002f;
-//                oldY = yOriginStraight;
-//                oldX = xOriginStraight;
+		stepX -= (mx-xOriginStraight) * 0.002f;
+        stepY += (my-yOriginStraight) * 0.002f;
 	}
 }
 
-void Keyboard(unsigned char key, int x, int y)
+float Cosine_Interpolate(float a, float b, float x)
 {
-	switch (key)
-	{
-	case 27:             // ESCAPE key
-		exit(0);
-		break;
+	float ft = x * 3.1415927;
+	float f = (1.0f - cos(ft)) * .5;
 
-	case '+':
-		tz += 1;
-		break;
-
-	case '-':
-		tz -= 1;
-		break;
-	}
+	return  a*(1.0f - f) + b*f;
 }
-
 
 void cpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
 {
     float v;
     float a,b,d,c;
-    float displacement = 0.25;
+	float displacement = DISPLACEMENT;
     
     for(int it = 0; it < iterationCount; it++){
         //one iteration
@@ -299,34 +290,18 @@ void cpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
             {
             for(int ix = 0; ix < w; ix++)
             {
-                if(a*ix + b*iz - c > 0)
-                    matrix[iz][ix] +=  displacement;
-                else
-                    matrix[iz][ix] -=  displacement;
+				if (a*ix + b*iz - c > 3.0f)
+                    matrix[iz][ix] += displacement;
+				else if (a*ix + b*iz - c < -3.0f)
+                    matrix[iz][ix] -= displacement;
+				else
+					matrix[iz][ix] += Cosine_Interpolate(-displacement, displacement, (a*ix + b*iz - c + 3) / 6.0);;
             }
         }
 		double dt = GetTime();
-		printf("part CPU time: %f\n", dt - dt1);
+		if (_DEBUG != 0)
+			printf("part CPU time: %f\n", dt - dt1);
     }
-}
-
-void gpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
-{
-	float v = 0.0f;
-	float a = 0.0f, b = 0.0f, d = 0.0f, c = 0.0f;
-	float displacement = 0.25;
-    
-
-
-}
-
-
-float Cosine_Interpolate(float a, float b, float x)
-{
-	float ft = x * 3.1415927;
-	float f = (1.0f - cos(ft)) * .5;
-
-	return  a*(1.0f - f) + b*f;
 }
 
 //http://freespace.virgin.net/hugo.elias/models/m_perlin.htm
@@ -346,20 +321,6 @@ float Smooth_NoiseI(float x, float y)
 	return corners + sides + center;
 }
 
-//double noise(double x, double y)
-//{
-//	double floorx = (double)((int)x);//This is kinda a cheap way to floor a double integer.
-//	double floory = (double)((int)y);
-//	double s, t, u, v;//Integer declaration
-//	s = PseudoRandom_NoiseI(floorx, floory);
-//	t = PseudoRandom_NoiseI(floorx + 1, floory);
-//	u = PseudoRandom_NoiseI(floorx, floory + 1);//Get the surrounding pixels to calculate the transition.
-//	v = PseudoRandom_NoiseI(floorx + 1, floory + 1);
-//	double int1 = Cosine_Interpolate(s, t, x - floorx);//Interpolate between the values.
-//	double int2 = Cosine_Interpolate(u, v, x - floorx);//Here we use x-floorx, to get 1st dimension. Don't mind the x-floorx thingie, it's part of the cosine formula.
-//	return Cosine_Interpolate(int1, int2, y - floory);//Here we use y-floory, to get the 2nd dimension.
-//}
-
 float Interpolated_NoiseI(float x, float y, int freq){
 	int integer_X = int(x);
 	float fractional_X = x - integer_X;
@@ -378,15 +339,14 @@ float Interpolated_NoiseI(float x, float y, int freq){
 	return Cosine_Interpolate(i1, i2, fractional_Y);
 }
 
-float point_PerlinNoise(float x, float y, float persistence, int octaves, int ampMult){
+float point_PerlinNoise(float x, float y, float persistence, int octaves){
 	float total = 0.0f;
-	float amplitude = 1;
+	float amplitude = 2.2f;
 
 	for (int i = 0; i < octaves; i++)
 	{
 		float frequency = pow(2.0f, i);
 		amplitude *= persistence;
-		amplitude *= ampMult;
 
 		total = total + Interpolated_NoiseI(x/frequency, y/frequency, frequency) * amplitude;
 
@@ -395,16 +355,12 @@ float point_PerlinNoise(float x, float y, float persistence, int octaves, int am
 	return total;
 }
 
-void cpu_PerlinNoise(float **matrix, int w, int l, float persistence, int octaves, int ampMult){
-	double width = 0, height = 0;
-
+void cpu_PerlinNoise(float **matrix, int w, int l, float persistence, int octaves){
 	for (int iz = 0; iz < l; iz++)
 	{
-		height += STEP;
 		for (int ix = 0; ix < w; ix++)
 		{
-			width += STEP;
-			matrix[iz][ix] = point_PerlinNoise(width, height, persistence, octaves, ampMult);
+			matrix[iz][ix] = point_PerlinNoise(iz, ix, persistence, octaves);
 		}
 	}
 }
@@ -429,27 +385,83 @@ void freeHeight(float ***height, int length){
     free(*height);
 }
 
+void Keyboard(unsigned char key, int x, int y)
+{
+	float dtStart, dtStart2, dtStart3, dtStart4;
+	double dt, dt2, dt3, dt4;
+
+	switch (key)
+	{
+	case 27:             // ESCAPE key
+		exit(0);
+		break;
+
+	case '+':
+		tz += 1;
+		break;
+
+	case '-':
+		tz -= 1;
+		break;
+
+	case 's':
+		dtStart = GetTime();
+		cpuFaultAlgorithm(height, mapsize, mapsize, iterations);
+		dt = GetTime();
+		printf("all CPUFaultAlgorithm time: %f\n", dt - dtStart);
+		break;
+
+	case 'x':
+		dtStart2 = GetTime();
+		faultFormationCl(mapsize, mapsize, height, iterations, DISPLACEMENT);
+		dt2 = GetTime();
+		printf("all GPUFaultAlgorithm time: %f\n", dt2 - dtStart2);
+		break;
+
+	case 'd':
+		dtStart3 = GetTime();
+		cpu_PerlinNoise(height, mapsize, mapsize, 0.75, 8);
+		dt3 = GetTime();
+		printf("all CPUPerlinNoise time: %f\n", dt3 - dtStart3);
+		break;
+
+	case 'c':
+		dtStart4 = GetTime();
+		perlinNoiseCl(0.75, 8, mapsize, mapsize, height);
+		dt4 = GetTime();
+		printf("all GPUPerlinNoise time: %f\n", dt4 - dtStart4);
+		break;
+	}
+}
+
 int main(int argc, char **argv) {
-    
-    createHeightMap(&height, MAP_SIZE, MAP_SIZE);
+	if (argc == 2)
+	{
+		mapsize = atoi(argv[1]);
+		iterations = atoi(argv[2]);
+	}
+
+	createHeightMap(&height, mapsize, mapsize);
 	
-	/*double dtStart = GetTime();
-	cpuFaultAlgorithm(height, MAP_SIZE, MAP_SIZE, ITERATIONS);
+	double dtStart = GetTime();
+	cpuFaultAlgorithm(height, mapsize, mapsize, iterations);
 	double dt = GetTime();
 	printf("all CPUFaultAlgorithm time: %f\n", dt - dtStart);
 	
 	double dtStart2 = GetTime();
-		faultFormationCl(a, b, c, displacement, w, l, matrix, iterationCount);
-
+	faultFormationCl(mapsize, mapsize, height, iterations, DISPLACEMENT);
 	double dt2 = GetTime();
-	printf("all GPUFaultAlgorithm time: %f\n",dt2 - dtStart2);*/
+	printf("all GPUFaultAlgorithm time: %f\n",dt2 - dtStart2);
 
 	double dtStart3 = GetTime();
-	cpu_PerlinNoise(height, MAP_SIZE, MAP_SIZE, 0.75, 8, 1);
+	cpu_PerlinNoise(height, mapsize, mapsize, 0.75, 8);
 	double dt3 = GetTime();
 	printf("all CPUPerlinNoise time: %f\n", dt3 - dtStart3);
 
-	perlinNoiseCl(0.75, 8, MAP_SIZE, MAP_SIZE, height);
+	double dtStart4 = GetTime();
+	perlinNoiseCl(0.75, 8, mapsize, mapsize, height);
+	double dt4 = GetTime();
+	printf("all GPUPerlinNoise time: %f\n", dt4 - dtStart4);
     
     /* Initialize GLUT state - glut will take any command line arguments that pertain to it or 
     X Windows - look at its documentation at http://reality.sgi.com/mjk/spec3/spec3.html */
