@@ -317,7 +317,6 @@ void gpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
 	float displacement = 0.25;
     
 
-	faultFormationCl(a, b, c, displacement, w, l, matrix, iterationCount);
 
 }
 
@@ -325,17 +324,18 @@ void gpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
 float Cosine_Interpolate(float a, float b, float x)
 {
 	float ft = x * 3.1415927;
-	float f = (1 - cos(ft)) * .5;
+	float f = (1.0f - cos(ft)) * .5;
 
-	return  a*(1 - f) + b*f;
+	return  a*(1.0f - f) + b*f;
 }
 
 //http://freespace.virgin.net/hugo.elias/models/m_perlin.htm
 float PseudoRandom_NoiseI(int x, int y)
 {
-	int n = x + y * 57;
+	int n = (int)x + (int)y * 57;
 	n = (n << 13) ^ n;
-	return (1.0 - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0);
+	int nn = (n*(n*n * 60493 + 19990303) + 1376312589) & 0x7fffffff;
+	return 1.0 - ((double)nn / 1073741824.0);
 }
 
 float Smooth_NoiseI(float x, float y)
@@ -346,17 +346,31 @@ float Smooth_NoiseI(float x, float y)
 	return corners + sides + center;
 }
 
-float Interpolated_NoiseI(float x, float y){
+//double noise(double x, double y)
+//{
+//	double floorx = (double)((int)x);//This is kinda a cheap way to floor a double integer.
+//	double floory = (double)((int)y);
+//	double s, t, u, v;//Integer declaration
+//	s = PseudoRandom_NoiseI(floorx, floory);
+//	t = PseudoRandom_NoiseI(floorx + 1, floory);
+//	u = PseudoRandom_NoiseI(floorx, floory + 1);//Get the surrounding pixels to calculate the transition.
+//	v = PseudoRandom_NoiseI(floorx + 1, floory + 1);
+//	double int1 = Cosine_Interpolate(s, t, x - floorx);//Interpolate between the values.
+//	double int2 = Cosine_Interpolate(u, v, x - floorx);//Here we use x-floorx, to get 1st dimension. Don't mind the x-floorx thingie, it's part of the cosine formula.
+//	return Cosine_Interpolate(int1, int2, y - floory);//Here we use y-floory, to get the 2nd dimension.
+//}
+
+float Interpolated_NoiseI(float x, float y, int freq){
 	int integer_X = int(x);
 	float fractional_X = x - integer_X;
 
 	int integer_Y = int(y);
 	float fractional_Y = y - integer_Y;
 
-	float v1 = PseudoRandom_NoiseI(integer_X, integer_Y);
-	float v2 = PseudoRandom_NoiseI(integer_X + 1, integer_Y);
-	float v3 = PseudoRandom_NoiseI(integer_X, integer_Y + 1);
-	float v4 = PseudoRandom_NoiseI(integer_X + 1, integer_Y + 1);
+	float v1 = Smooth_NoiseI(integer_X, integer_Y);
+	float v2 = Smooth_NoiseI(integer_X + 1, integer_Y);
+	float v3 = Smooth_NoiseI(integer_X, integer_Y + 1);
+	float v4 = Smooth_NoiseI(integer_X + 1, integer_Y + 1);
 
 	float i1 = Cosine_Interpolate(v1, v2, fractional_X);
 	float i2 = Cosine_Interpolate(v3, v4, fractional_X);
@@ -374,7 +388,7 @@ float point_PerlinNoise(float x, float y, float persistence, int octaves, int am
 		amplitude *= persistence;
 		amplitude *= ampMult;
 
-		total = total + Interpolated_NoiseI(x * frequency, y * frequency) * amplitude;
+		total = total + Interpolated_NoiseI(x/frequency, y/frequency, frequency) * amplitude;
 
 	}
 
@@ -425,14 +439,17 @@ int main(int argc, char **argv) {
 	printf("all CPUFaultAlgorithm time: %f\n", dt - dtStart);
 	
 	double dtStart2 = GetTime();
-	gpuFaultAlgorithm(height, MAP_SIZE, MAP_SIZE, ITERATIONS);
+		faultFormationCl(a, b, c, displacement, w, l, matrix, iterationCount);
+
 	double dt2 = GetTime();
 	printf("all GPUFaultAlgorithm time: %f\n",dt2 - dtStart2);*/
 
 	double dtStart3 = GetTime();
-	cpu_PerlinNoise(height, MAP_SIZE, MAP_SIZE, 0.5, 8, 1);
+	cpu_PerlinNoise(height, MAP_SIZE, MAP_SIZE, 0.75, 8, 1);
 	double dt3 = GetTime();
 	printf("all CPUPerlinNoise time: %f\n", dt3 - dtStart3);
+
+	perlinNoiseCl(0.75, 8, MAP_SIZE, MAP_SIZE, height);
     
     /* Initialize GLUT state - glut will take any command line arguments that pertain to it or 
     X Windows - look at its documentation at http://reality.sgi.com/mjk/spec3/spec3.html */

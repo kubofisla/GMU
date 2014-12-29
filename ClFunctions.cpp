@@ -192,14 +192,14 @@ char* LoadProgSource(const char* cFilename)
     return cSourceString;
 }
 
-void faultFormationCl(float a, float b, float c, float d, int MATRIX_W, int MATRIX_H, float** height, int iter){
+void faultFormationCl(int MATRIX_W, int MATRIX_H, float** height, int iter, float displacement){
     
     cl_int errNum;
     cl_int err_msg;
     cl_device_id gpu_device;
     
     myClLoadDevice(&gpu_device, MATRIX_W, MATRIX_H, &err_msg);
-	computeGpu(&gpu_device, MATRIX_W, MATRIX_H, a, b, c, d, &err_msg, &errNum, height, iter);
+	computeFaultGpu(&gpu_device, MATRIX_W, MATRIX_H, displacement, &err_msg, &errNum, height, iter);
 }
 
 void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int *err_msg){
@@ -288,7 +288,7 @@ void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int
     free(platforms);
 }
 
-void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, float b, float c, float displacement, cl_int *err_msg, cl_int *errNum, float** height, int iteration)
+void computeFaultGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float displacement, cl_int *err_msg, cl_int *errNum, float** height, int iteration)
 {
     cl_float *device_data = (cl_float *)malloc(sizeof(cl_float) * MATRIX_W * MATRIX_H);
 	memset(device_data, 0, MATRIX_H*MATRIX_W*sizeof(cl_float));
@@ -402,3 +402,101 @@ void computeGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float a, f
     free(device_data);
 }
 
+
+void perlinNoiseCl(float persistence, int octaves, int MATRIX_W, int MATRIX_H, float** height){
+
+	cl_int errNum;
+	cl_int err_msg;
+	cl_device_id gpu_device;
+
+	myClLoadDevice(&gpu_device, MATRIX_W, MATRIX_H, &err_msg);
+	computePerlinGpu(&gpu_device, MATRIX_W, MATRIX_H, persistence, octaves, &err_msg, &errNum, height);
+}
+
+void computePerlinGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float persistence, int octaves, cl_int *err_msg, cl_int *errNum, float** height)
+{
+	cl_float *device_data = (cl_float *)malloc(sizeof(cl_float) * MATRIX_W * MATRIX_H);
+
+	cl_context context = NULL;
+	cl_command_queue queue = NULL;
+
+	context = clCreateContext(NULL, 1, gpu_device, NULL, NULL, errNum);
+
+	queue = clCreateCommandQueue(context, *gpu_device, CL_QUEUE_PROFILING_ENABLE, errNum);
+
+	char *program_source = LoadProgSource("perlinNoise.cl");
+
+	// get program
+	cl_program program = clCreateProgramWithSource(context, 1, (const char **)&program_source, NULL, err_msg);
+	CheckOpenCLError(*err_msg, "clCreateProgramWithSource");
+
+	// build program
+	//CheckOpenCLError(clBuildProgram(program, 1, gpu_device, "", NULL, NULL), "clBuildProgram");
+
+	clBuildProgram(program, 1, gpu_device, "", NULL, NULL);
+	char *build_log;
+
+	size_t ret_val_size;
+
+	(clGetProgramBuildInfo(program, *gpu_device, CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size));
+
+	build_log = new char[ret_val_size + 1];
+
+	(clGetProgramBuildInfo(program, *gpu_device, CL_PROGRAM_BUILD_LOG, ret_val_size, build_log, NULL));
+
+	// create kernel
+	cl_kernel kernel = clCreateKernel(program, "perlinNoise", err_msg);
+	CheckOpenCLError(*err_msg, "clCreateKernel");
+
+	double dtStart = GetTime();
+
+	/*Buffers*/
+	cl_mem h_buffer;
+
+	h_buffer = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_COPY_HOST_PTR, MATRIX_H*MATRIX_W*sizeof(cl_float), device_data, errNum);
+
+	cl_int matrix_width = MATRIX_W;
+	cl_int matrix_height = MATRIX_H;
+
+	cl_float persistence_param = persistence;
+	cl_float octaves_param = octaves;
+
+	/*Parametry*/
+	clSetKernelArg(kernel, 0, sizeof(h_buffer), &h_buffer);
+	clSetKernelArg(kernel, 1, sizeof(persistence_param), &persistence_param);
+	clSetKernelArg(kernel, 2, sizeof(octaves_param), &octaves_param);
+	clSetKernelArg(kernel, 3, sizeof(matrix_width), &matrix_width);
+	clSetKernelArg(kernel, 4, sizeof(matrix_height), &matrix_height);
+
+	size_t local[2] = { 16, 16 };
+	size_t global[2] = { MATRIX_W, MATRIX_H };
+
+	clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, NULL);
+
+	clEnqueueReadBuffer(queue, h_buffer, CL_FALSE, 0, MATRIX_W*MATRIX_H*sizeof(cl_int), device_data, 0, NULL, NULL);
+
+	// synchronize queue
+	CheckOpenCLError(clFinish(queue), "clFinish");
+
+	clReleaseMemObject(h_buffer);
+
+	//copy result
+	for (int z = 0; z < MATRIX_H; z++){
+		for (int x = 0; x < MATRIX_W; x++)
+		{
+			height[z][x] = device_data[z*MATRIX_W + x];
+		}
+	}
+
+	double dtStop = GetTime();
+	printf("Compute GPU time: %f\n", dtStop - dtStart);
+
+	CheckOpenCLError(clReleaseKernel(kernel), "clReleaseKernel");
+	CheckOpenCLError(clReleaseProgram(program), "clReleaseProgram");
+
+	CheckOpenCLError(clReleaseCommandQueue(queue), "clReleaseCommandQueue");
+	CheckOpenCLError(clReleaseContext(context), "clReleaseContext");
+
+	// deallocate host data
+	free(device_data);
+}
