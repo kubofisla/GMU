@@ -2,10 +2,9 @@
 #include <stdlib.h>
 
 #include <GL/glut.h>    // Header File For The GLUT Library 
-#include <GL/glu.h>     // Header File For The GLu32 Library
 
 #include <GL/gl.h>
-#include <SOIL/SOIL.h>
+//#include <SOIL/SOIL.h>
 
 #include "ClFunctions.h"
 
