@@ -48,14 +48,14 @@ __kernel void perlinNoise(__global float *h, float persistence, int octaves, int
 	int index = global_x + width*global_y;
 
 	float frequency;
-	float amplitude = 2.2f;
+	float amplitude = 1.0f;
 
 	for (int i = 0; i < octaves; i++)
 	{
 		frequency = pow(2.0f, i);
 		amplitude *= persistence;
 
-		h[index] += Interpolated_NoiseI(global_x / frequency, global_y / frequency, frequency) * amplitude;
+		h[index] += Interpolated_NoiseI(global_y / frequency, global_x / frequency, frequency) * amplitude;
 
 	}
 }

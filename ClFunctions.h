@@ -11,8 +11,7 @@
 
 #define TMP_BUFFER_SIZE 4096
 
-
-#define _DEBUG 1
+#define _DEBUG 0
 
 #include <string.h>
 #include <stdlib.h>

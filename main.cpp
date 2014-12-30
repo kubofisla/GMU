@@ -17,6 +17,9 @@
 #define MAP_SIZE 512
 #define ITERATIONS 4096
 
+#define PERSISTENCE 1.5
+#define OCTAVES 8
+
 #define STEP 1
 #define DISPLACEMENT 0.20
 
@@ -81,51 +84,6 @@ void InitGL(int Width, int Height)              // We call this right after our 
     glMatrixMode(GL_MODELVIEW);
 }
 
-GLuint LoadTexture( const char * filename )
-{
-    GLuint texture;
-
-    int width, height;
-
-    unsigned char * data;
-
-    FILE * file;
-
-    file = fopen( filename, "rb" );
-
-    if ( file == NULL ) return 0;
-    width = 1024;
-    height = 512;
-    data = (unsigned char *)malloc( width * height * 3 );
-    fread( data, width * height * 3, 1, file );
-    fclose( file );
-
-    for(int i = 0; i < width * height ; ++i)
-    {
-        int index = i*3;
-        unsigned char B,R;
-        B = data[index];
-        R = data[index+2];
-
-        data[index] = R;
-        data[index+2] = B;
-    }
-
-
-    glGenTextures( 1, &texture );
-    glBindTexture( GL_TEXTURE_2D, texture );
-    glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE,GL_MODULATE );
-    glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST );
-
-
-    glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,GL_LINEAR );
-    glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,GL_REPEAT );
-    glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,GL_REPEAT );
-    gluBuild2DMipmaps( GL_TEXTURE_2D, 3, width, height,GL_RGB, GL_UNSIGNED_BYTE, data );
-    free( data );
-
-    return texture;
-}
 
 #ifdef USE_SOIL
 GLuint LoadGLTexture(const char * filename )                                    // Load Bitmaps And Convert To Textures
@@ -180,7 +138,7 @@ void  DrawGLScene()// Vykreslování
 	glPushMatrix();
         for (int ix = 0; ix < MAP_SIZE-1; ix++) {
             for (int iz = 0; iz < MAP_SIZE-1; iz++) {
-                //glColor3f(0.2f,1.0f,0.2f);		
+                glColor3f(0.2f,1.0f,0.2f);		
                 glBegin(GL_QUADS);
                     glTexCoord2f(0.0f, 0.0f);
                     glVertex3f( (float)ix-HALF_SIZE, height[ix][iz]    , (float)iz-HALF_SIZE );
@@ -348,7 +306,7 @@ float Interpolated_NoiseI(float x, float y, int freq){
 
 float point_PerlinNoise(float x, float y, float persistence, int octaves){
 	float total = 0.0f;
-	float amplitude = 2.2f;
+	float amplitude = 1.0f;
 
 	for (int i = 0; i < octaves; i++)
 	{
@@ -367,7 +325,7 @@ void cpu_PerlinNoise(float **matrix, int w, int l, float persistence, int octave
 	{
 		for (int ix = 0; ix < w; ix++)
 		{
-			matrix[iz][ix] = point_PerlinNoise(iz, ix, persistence, octaves);
+			matrix[iz][ix] = point_PerlinNoise(ix, iz, persistence, octaves);
 		}
 	}
 }
@@ -427,14 +385,14 @@ void Keyboard(unsigned char key, int x, int y)
 
 	case 'd':
 		dtStart3 = GetTime();
-		cpu_PerlinNoise(height, mapsize, mapsize, 0.75, 8);
+		cpu_PerlinNoise(height, mapsize, mapsize, PERSISTENCE, OCTAVES);
 		dt3 = GetTime();
 		printf("all CPUPerlinNoise time: %f\n", dt3 - dtStart3);
 		break;
 
 	case 'c':
 		dtStart4 = GetTime();
-		perlinNoiseCl(0.75, 8, mapsize, mapsize, height);
+		perlinNoiseCl(PERSISTENCE, OCTAVES, mapsize, mapsize, height);
 		dt4 = GetTime();
 		printf("all GPUPerlinNoise time: %f\n", dt4 - dtStart4);
 		break;
@@ -451,12 +409,12 @@ int main(int argc, char **argv) {
 	createHeightMap(&height, mapsize, mapsize);
 	
 	double dtStart3 = GetTime();
-	cpu_PerlinNoise(height, mapsize, mapsize, 0.75, 8);
+	cpu_PerlinNoise(height, mapsize, mapsize, PERSISTENCE , OCTAVES);
 	double dt3 = GetTime();
 	printf("all CPUPerlinNoise time: %f\n", dt3 - dtStart3);
 
 	double dtStart4 = GetTime();
-	perlinNoiseCl(0.75, 8, mapsize, mapsize, height);
+	perlinNoiseCl(PERSISTENCE, OCTAVES, mapsize, mapsize, height);
 	double dt4 = GetTime();
 	printf("all GPUPerlinNoise time: %f\n", dt4 - dtStart4);
     
