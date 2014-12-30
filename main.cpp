@@ -289,12 +289,12 @@ void cpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
             {
             for(int ix = 0; ix < w; ix++)
             {
-				if (a*ix + b*iz - c > 3.0f)
+				if (a*ix + b*iz - c > 2.0f)
                     matrix[iz][ix] += displacement;
-				else if (a*ix + b*iz - c < -3.0f)
+				else if (a*ix + b*iz - c < -2.0f)
                     matrix[iz][ix] -= displacement;
 				else
-					matrix[iz][ix] += Cosine_Interpolate(-displacement, displacement, (a*ix + b*iz - c + 3) / 6.0);;
+					matrix[iz][ix] += Cosine_Interpolate(-displacement, displacement, (a*ix + b*iz - c + 2) / 4.0);;
             }
         }
 		double dt = GetTime();

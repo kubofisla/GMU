@@ -13,10 +13,10 @@ __kernel void faultFormation(__global float *h, float a, float b, float c, float
 	
     int index = global_x + width*global_y;
 
-	if (a*global_x + b*global_y - c > 3.0f)
+	if (a*global_x + b*global_y - c > 2.0f)
         h[index] +=  displacement;
-	else if (a*global_x + b*global_y - c < -3.0f)
+	else if (a*global_x + b*global_y - c < -2.0f)
 		h[index] -= displacement;
 	else
-		h[index] += Cosine_Interpolate(-displacement, displacement, (a*global_x + b*global_y - c + 3)/6.0);
+		h[index] += Cosine_Interpolate(-displacement, displacement, (a*global_x + b*global_y - c + 2)/4.0);
 }
