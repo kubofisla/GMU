@@ -3,7 +3,8 @@
 CFLAGS_COMMON=-pipe -Wall -ggdb -std=c++11
 CC=gcc
 CXX=g++
-TEX=1
+#zapnutie texturovania pomocou SOILu <>WIN
+#TEX=1
 
 ##################################################
 # nastaveni knihoven s OpenGL
@@ -12,7 +13,7 @@ ifeq ($(OS), Windows_NT)
 	LIBS=-lopengl32 -lglut -lm -lOpenCL -lGLU #-lSOIL 
 	RM=del
 else
-	ifeq ($(tex), 1)
+	ifeq ($(TEX), 1)
 		USE_SOIL=1
 		CFLAGS=$(CFLAGS_COMMON) -I. -IGL -DUSE_SOIL
 		LIBS=-L/usr/lib -lGL -lglut -lm -lOpenCL -lGLU -lSOIL

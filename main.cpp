@@ -295,7 +295,6 @@ void cpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
         // therefore c will be a random number between -d/2 and d/2
         c = ((float)rand() / (float)RAND_MAX) * d - d/2;
 
-		double dt1 = GetTime();
         //change height in whole map
         for(int iz = 0; iz < l; iz++)
             {
@@ -451,16 +450,6 @@ int main(int argc, char **argv) {
 
 	createHeightMap(&height, mapsize, mapsize);
 	
-	double dtStart = GetTime();
-	cpuFaultAlgorithm(height, mapsize, mapsize, iterations);
-	double dt = GetTime();
-	printf("all CPUFaultAlgorithm time: %f\n", dt - dtStart);
-	
-	double dtStart2 = GetTime();
-	faultFormationCl(mapsize, mapsize, height, iterations, DISPLACEMENT);
-	double dt2 = GetTime();
-	printf("all GPUFaultAlgorithm time: %f\n",dt2 - dtStart2);
-
 	double dtStart3 = GetTime();
 	cpu_PerlinNoise(height, mapsize, mapsize, 0.75, 8);
 	double dt3 = GetTime();
@@ -471,6 +460,17 @@ int main(int argc, char **argv) {
 	double dt4 = GetTime();
 	printf("all GPUPerlinNoise time: %f\n", dt4 - dtStart4);
     
+	double dtStart = GetTime();
+	cpuFaultAlgorithm(height, mapsize, mapsize, iterations);
+	double dt = GetTime();
+	printf("all CPUFaultAlgorithm time: %f\n", dt - dtStart);
+	
+	double dtStart2 = GetTime();
+	faultFormationCl(mapsize, mapsize, height, iterations, DISPLACEMENT);
+	double dt2 = GetTime();
+	printf("all GPUFaultAlgorithm time: %f\n",dt2 - dtStart2);
+
+
     /* Initialize GLUT state - glut will take any command line arguments that pertain to it or 
     X Windows - look at its documentation at http://reality.sgi.com/mjk/spec3/spec3.html */
     glutInit(&argc, argv);
