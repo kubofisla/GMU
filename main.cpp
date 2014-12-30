@@ -3,9 +3,11 @@
 
 #include <GL/glut.h>     
 #include <GL/glu.h>     
-
 #include <GL/gl.h>
-//#include <SOIL/SOIL.h>
+
+#ifdef USE_SOIL
+#include <SOIL/SOIL.h>
+#endif
 
 #include "ClFunctions.h"
 
@@ -66,7 +68,10 @@ void InitGL(int Width, int Height)              // We call this right after our 
     glEnable(GL_DEPTH_TEST);                      // Enables Depth Testing
     glShadeModel(GL_SMOOTH);                      // Enables Smooth Color Shading
 
-    texture = LoadTexture("./grassTexture.bmp");
+	#ifdef USE_SOIL
+	texture = LoadGLTexture("./grassTexture.bmp");
+	#endif // USE_SOIL
+
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();                             // Reset The Projection Matrix
@@ -122,28 +127,30 @@ GLuint LoadTexture( const char * filename )
     return texture;
 }
 
+#ifdef USE_SOIL
 GLuint LoadGLTexture(const char * filename )                                    // Load Bitmaps And Convert To Textures
 {
-    /* load an image file directly as a new OpenGL texture */
-    /*texture = SOIL_load_OGL_texture
-        (
-        filename,
-        SOIL_LOAD_AUTO,
-        SOIL_CREATE_NEW_ID,
-        SOIL_FLAG_INVERT_Y
-        );*/
- 
-    if(texture == 0)
-        return texture;
- 
- 
-    // Typical Texture Generation Using Data From The Bitmap
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
- 
-    return texture;                                        // Return Success
+	/* load an image file directly as a new OpenGL texture */
+	texture = SOIL_load_OGL_texture
+		(
+		filename,
+		SOIL_LOAD_AUTO,
+		SOIL_CREATE_NEW_ID,
+		SOIL_FLAG_INVERT_Y
+		);
+
+	if (texture == 0)
+		return texture;
+
+
+	// Typical Texture Generation Using Data From The Bitmap
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	return texture;                                        // Return Success
 }
+#endif
 
 void  DrawGLScene()// Vykreslování
 {
@@ -163,12 +170,14 @@ void  DrawGLScene()// Vykreslování
 			x+lx, y+ly,  z+lz,
 			0.0f, 1.0f,  0.0f);
         
-        //glBindTexture(GL_TEXTURE_2D, texture);// Zvolí texturu
-       
+	#ifdef USE_SOIL
+		glBindTexture(GL_TEXTURE_2D, texture);// Zvolí texturu
+	#else
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	#endif // USE_SOIL
         
 	// Sem kreslit
 	glPushMatrix();
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         for (int ix = 0; ix < MAP_SIZE-1; ix++) {
             for (int iz = 0; iz < MAP_SIZE-1; iz++) {
                 //glColor3f(0.2f,1.0f,0.2f);		
@@ -187,7 +196,9 @@ void  DrawGLScene()// Vykreslování
                 glEnd();
             }
         }
+		#ifndef USE_SOIL
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		#endif
         glPopMatrix();
 
     // we need to swap the buffer to display our drawing.

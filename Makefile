@@ -3,6 +3,7 @@
 CFLAGS_COMMON=-pipe -Wall -ggdb -std=c++11
 CC=gcc
 CXX=g++
+TEX=1
 
 ##################################################
 # nastaveni knihoven s OpenGL
@@ -11,9 +12,14 @@ ifeq ($(OS), Windows_NT)
 	LIBS=-lopengl32 -lglut -lm -lOpenCL -lGLU #-lSOIL 
 	RM=del
 else
-#       USE_GLEE=1
-	CFLAGS=$(CFLAGS_COMMON) -I. -IGL #-DUSE_GLEE
-	LIBS=-L/usr/lib -lGL -lglut -lm -lOpenCL -lGLU #-lSOIL
+	ifeq ($(tex), 1)
+		USE_SOIL=1
+		CFLAGS=$(CFLAGS_COMMON) -I. -IGL -DUSE_SOIL
+		LIBS=-L/usr/lib -lGL -lglut -lm -lOpenCL -lGLU -lSOIL
+	else
+		CFLAGS=$(CFLAGS_COMMON) -I. -IGL
+		LIBS=-L/usr/lib -lGL -lglut -lm -lOpenCL -lGLU
+	endif
 	RM=rm -f
 endif
 
