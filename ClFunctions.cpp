@@ -137,17 +137,15 @@ void CheckOpenCLError(cl_int _ciErr, const char *_sMsg, ...)
     va_start (arg, _sMsg);
     vsprintf (buffer, _sMsg, arg);
     va_end (arg);
-
-	if (_DEBUG != 0){
-		if (_ciErr != CL_SUCCESS) {
-			printf("%f: ERROR: %s: (%i)%s\n", GetTime(), buffer, _ciErr, CLErrorString(_ciErr));
-			system("PAUSE");
-			exit(1);
-		}
-		else {
-			if (uiDebug > 1) {
+	if (_ciErr != CL_SUCCESS) {
+		printf("%f: ERROR: %s: (%i)%s\n", GetTime(), buffer, _ciErr, CLErrorString(_ciErr));
+		system("PAUSE");
+		exit(1);
+	}
+	else {
+		if (uiDebug > 1) {
+			if (_DEBUG != 0)
 				printf("%f:    OK: %s\n", GetTime(), buffer);
-			}
 		}
 	}
 }
@@ -198,11 +196,11 @@ void faultFormationCl(int MATRIX_W, int MATRIX_H, float** height, int iter, floa
     cl_int err_msg;
     cl_device_id gpu_device;
     
-    myClLoadDevice(&gpu_device, MATRIX_W, MATRIX_H, &err_msg);
-	computeFaultGpu(&gpu_device, MATRIX_W, MATRIX_H, displacement, &err_msg, &errNum, height, iter);
+	if(myClLoadDevice(&gpu_device, MATRIX_W, MATRIX_H, &err_msg))
+		computeFaultGpu(&gpu_device, MATRIX_W, MATRIX_H, displacement, &err_msg, &errNum, height, iter);
 }
 
-void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int *err_msg){
+int myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int *err_msg){
     char tmp_buf[TMP_BUFFER_SIZE];
 
     cl_platform_id *platforms;
@@ -273,19 +271,23 @@ void myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int
     cl_device_type device_type;
     CheckOpenCLError(clGetDeviceInfo(*gpu_device, CL_DEVICE_NAME, TMP_BUFFER_SIZE, tmp_buf, NULL), "clGetDeviceInfo");
     CheckOpenCLError(clGetDeviceInfo(*gpu_device, CL_DEVICE_TYPE, sizeof(cl_device_type), &device_type, NULL), "clGetDeviceInfo");
-	if (_DEBUG != 0){
-		if (device_type == CL_DEVICE_TYPE_GPU)
-		{
+	
+	if (device_type == CL_DEVICE_TYPE_GPU)
+	{
+		if (_DEBUG != 0)
 			printf("\nSelected device type: Correct\n");
-		}
-		else
-		{
-			printf("\nSelected device type: Incorrect\n");
-		}
-		printf("Selected device name: %s.\n", tmp_buf);
 	}
+	else
+	{
+		printf("\nSelected device type: Incorrect\n Comupting skipped.\n");
+		return 0;
+	}
+	if (_DEBUG != 0)
+		printf("Selected device name: %s.\n", tmp_buf);
+
 
     free(platforms);
+	return 1;
 }
 
 void computeFaultGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float displacement, cl_int *err_msg, cl_int *errNum, float** height, int iteration)
@@ -400,8 +402,8 @@ void perlinNoiseCl(float persistence, int octaves, int MATRIX_W, int MATRIX_H, f
 	cl_int err_msg;
 	cl_device_id gpu_device;
 
-	myClLoadDevice(&gpu_device, MATRIX_W, MATRIX_H, &err_msg);
-	computePerlinGpu(&gpu_device, MATRIX_W, MATRIX_H, persistence, octaves, &err_msg, &errNum, height);
+	if(myClLoadDevice(&gpu_device, MATRIX_W, MATRIX_H, &err_msg))
+		computePerlinGpu(&gpu_device, MATRIX_W, MATRIX_H, persistence, octaves, &err_msg, &errNum, height);
 }
 
 void computePerlinGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float persistence, int octaves, cl_int *err_msg, cl_int *errNum, float** height)

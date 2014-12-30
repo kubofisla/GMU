@@ -8,12 +8,12 @@ CXX=g++
 # nastaveni knihoven s OpenGL
 ifeq ($(OS), Windows_NT)
 	CFLAGS=$(CFLAGS_COMMON) -Wl,--enable-auto-import
-	LIBS=-lopengl32 -lglut -lm -lOpenCL #-lSOIL 
+	LIBS=-lopengl32 -lglut -lm -lOpenCL -lGLU #-lSOIL 
 	RM=del
 else
 #       USE_GLEE=1
 	CFLAGS=$(CFLAGS_COMMON) -I. -IGL #-DUSE_GLEE
-	LIBS=-L/usr/lib -lGL -lglut -lm -lOpenCL #-lSOIL
+	LIBS=-L/usr/lib -lGL -lglut -lm -lOpenCL -lGLU #-lSOIL
 	RM=rm -f
 endif
 

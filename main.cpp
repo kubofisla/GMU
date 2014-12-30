@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <GL/glut.h>    // Header File For The GLUT Library 
+#include <GL/glut.h>     
+#include <GL/glu.h>     
 
 #include <GL/gl.h>
 //#include <SOIL/SOIL.h>
@@ -297,9 +298,6 @@ void cpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
 					matrix[iz][ix] += Cosine_Interpolate(-displacement, displacement, (a*ix + b*iz - c + 2) / 4.0);;
             }
         }
-		double dt = GetTime();
-		if (_DEBUG != 0)
-			printf("part CPU time: %f\n", dt - dt1);
     }
 }
 
