@@ -14,7 +14,7 @@
 #define WIN_SIZE_W 800
 #define WIN_SIZE_H 600
 
-#define MAP_SIZE 512
+#define MAP_SIZE 256
 #define ITERATIONS 4096
 
 #define PERSISTENCE 1.5
@@ -88,7 +88,7 @@ void InitGL(int Width, int Height)              // We call this right after our 
 #ifdef USE_SOIL
 GLuint LoadGLTexture(const char * filename )                                    // Load Bitmaps And Convert To Textures
 {
-	/* load an image file directly as a new OpenGL texture */
+	/* load an image file */
 	texture = SOIL_load_OGL_texture
 		(
 		filename,
@@ -101,29 +101,29 @@ GLuint LoadGLTexture(const char * filename )                                    
 		return texture;
 
 
-	// Typical Texture Generation Using Data From The Bitmap
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	return texture;                                        // Return Success
+	return texture;                                        
 }
 #endif
 
 void  DrawGLScene()// Vykreslování
 {
-        int HALF_SIZE = MAP_SIZE/2;
+    int HALF_SIZE = MAP_SIZE/2;
 	
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);// Smaže obrazovku a hloubkový buffer
 	glLoadIdentity();// Reset matice      
 
-        glTranslatef(stepX,0.0f,0.0f);
+	// Camera move
+    glTranslatef(stepX,0.0f,0.0f);
         
-        glTranslatef(0.0f,stepY,0.0f);
+    glTranslatef(0.0f,stepY,0.0f);
         
-        glTranslatef(0.0f,0.0f,tz);
+    glTranslatef(0.0f,0.0f,tz);
         
-        // Set the camera
+    // Set the camera
 	gluLookAt(	x, y, z,
 			x+lx, y+ly,  z+lz,
 			0.0f, 1.0f,  0.0f);
@@ -220,7 +220,7 @@ void mouseMove(int mx, int my) {
         lz2 = -cos(angle2 + gamaAngle);
 	}
         
-        // this will only be true when the left button is down
+    // this will only be true when the left button is down
 	if (xOriginStraight >= 0) {
 
 		// update deltaAngle
@@ -269,7 +269,7 @@ void cpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
     }
 }
 
-//http://freespace.virgin.net/hugo.elias/models/m_perlin.htm
+//Generacia pseudonahodneho cisla
 float PseudoRandom_NoiseI(int x, int y)
 {
 	int n = (int)x + (int)y * 57;
@@ -278,14 +278,20 @@ float PseudoRandom_NoiseI(int x, int y)
 	return 1.0 - ((double)nn / 1073741824.0);
 }
 
+//Vyhladeny sum
 float Smooth_NoiseI(float x, float y)
 {
+	//rohy
 	float corners = (PseudoRandom_NoiseI(x - 1, y - 1) + PseudoRandom_NoiseI(x + 1, y - 1) + PseudoRandom_NoiseI(x - 1, y + 1) + PseudoRandom_NoiseI(x + 1, y + 1)) / 16;
+	//strany
 	float sides = (PseudoRandom_NoiseI(x - 1, y) + PseudoRandom_NoiseI(x + 1, y) + PseudoRandom_NoiseI(x, y - 1) + PseudoRandom_NoiseI(x, y + 1)) / 8;
+	//centrum
 	float center = PseudoRandom_NoiseI(x, y) / 4;
+	//ich sucet
 	return corners + sides + center;
 }
 
+//Interpolacia vyhladeneho sumu 
 float Interpolated_NoiseI(float x, float y, int freq){
 	int integer_X = int(x);
 	float fractional_X = x - integer_X;
@@ -304,6 +310,7 @@ float Interpolated_NoiseI(float x, float y, int freq){
 	return Cosine_Interpolate(i1, i2, fractional_Y);
 }
 
+//perlinov sum pre dany bod
 float point_PerlinNoise(float x, float y, float persistence, int octaves){
 	float total = 0.0f;
 	float amplitude = 1.0f;
@@ -320,6 +327,7 @@ float point_PerlinNoise(float x, float y, float persistence, int octaves){
 	return total;
 }
 
+//vypocet perlinovho sumu na CPU
 void cpu_PerlinNoise(float **matrix, int w, int l, float persistence, int octaves){
 	for (int iz = 0; iz < l; iz++)
 	{
@@ -330,6 +338,7 @@ void cpu_PerlinNoise(float **matrix, int w, int l, float persistence, int octave
 	}
 }
 
+//Vytvorenie matice, ktora s avyuziva ako vyskova mapa
 void createHeightMap(float ***height, int width, int length){
     (*height) = (float **)malloc(length*sizeof(float *));
     
@@ -342,6 +351,7 @@ void createHeightMap(float ***height, int width, int length){
 
 }
 
+//uvolnenie alokovaneho miesta matice
 void freeHeight(float ***height, int length){
     for(int i = 0; i < length; i++)
     {
@@ -350,6 +360,7 @@ void freeHeight(float ***height, int length){
     free(*height);
 }
 
+//event klavesnice
 void Keyboard(unsigned char key, int x, int y)
 {
 	float dtStart, dtStart2, dtStart3, dtStart4;
@@ -357,7 +368,7 @@ void Keyboard(unsigned char key, int x, int y)
 
 	switch (key)
 	{
-	case 27:             // ESCAPE key
+	case 27:             // ESCAPE
 		exit(0);
 		break;
 
@@ -369,6 +380,7 @@ void Keyboard(unsigned char key, int x, int y)
 		tz -= 1;
 		break;
 
+	//Vypocita CPU Fault-formation
 	case 's':
 		dtStart = GetTime();
 		cpuFaultAlgorithm(height, mapsize, mapsize, iterations);
@@ -376,6 +388,7 @@ void Keyboard(unsigned char key, int x, int y)
 		printf("all CPUFaultAlgorithm time: %f\n", dt - dtStart);
 		break;
 
+	//Vypocita GPU Fault-formation
 	case 'x':
 		dtStart2 = GetTime();
 		faultFormationCl(mapsize, mapsize, height, iterations, DISPLACEMENT);
@@ -383,6 +396,7 @@ void Keyboard(unsigned char key, int x, int y)
 		printf("all GPUFaultAlgorithm time: %f\n", dt2 - dtStart2);
 		break;
 
+	//Vypocita CPU Perlin Noise
 	case 'd':
 		dtStart3 = GetTime();
 		cpu_PerlinNoise(height, mapsize, mapsize, PERSISTENCE, OCTAVES);
@@ -390,6 +404,7 @@ void Keyboard(unsigned char key, int x, int y)
 		printf("all CPUPerlinNoise time: %f\n", dt3 - dtStart3);
 		break;
 
+	//Vypocita GPU Perlin Noise
 	case 'c':
 		dtStart4 = GetTime();
 		perlinNoiseCl(PERSISTENCE, OCTAVES, mapsize, mapsize, height);
@@ -400,29 +415,32 @@ void Keyboard(unsigned char key, int x, int y)
 }
 
 int main(int argc, char **argv) {
+	//ulozenie argumentov
 	if (argc == 2)
 	{
 		mapsize = atoi(argv[1]);
 		iterations = atoi(argv[2]);
 	}
-
+	//Tvorba amtice
 	createHeightMap(&height, mapsize, mapsize);
 	
+	//Vypocet a casy
+	//Vypocita CPU Perlin Noise
 	double dtStart3 = GetTime();
 	cpu_PerlinNoise(height, mapsize, mapsize, PERSISTENCE , OCTAVES);
 	double dt3 = GetTime();
 	printf("all CPUPerlinNoise time: %f\n", dt3 - dtStart3);
-
+	//Vypocita GPU Perlin Noise
 	double dtStart4 = GetTime();
 	perlinNoiseCl(PERSISTENCE, OCTAVES, mapsize, mapsize, height);
 	double dt4 = GetTime();
 	printf("all GPUPerlinNoise time: %f\n", dt4 - dtStart4);
-    
+	//Vypocita CPU Fault-formation
 	double dtStart = GetTime();
 	cpuFaultAlgorithm(height, mapsize, mapsize, iterations);
 	double dt = GetTime();
 	printf("all CPUFaultAlgorithm time: %f\n", dt - dtStart);
-	
+	//Vypocita GPU Fault-formation
 	double dtStart2 = GetTime();
 	faultFormationCl(mapsize, mapsize, height, iterations, DISPLACEMENT);
 	double dt2 = GetTime();
