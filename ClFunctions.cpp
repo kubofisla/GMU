@@ -1,5 +1,6 @@
 #include "ClFunctions.h"
 
+//Stavy z cviceni GMU
 const char *CLErrorString(cl_int _err) {
     switch (_err) {
     case CL_SUCCESS:
@@ -99,6 +100,7 @@ const char *CLErrorString(cl_int _err) {
     }
 }
 
+//vracia cas v s
 double GetTime(void)
 {
 #if _WIN32  															/* toto jede na Windows */
@@ -128,6 +130,7 @@ double GetTime(void)
 #endif
 }
 
+//test navratovej hodnoty cl funkcii
 void CheckOpenCLError(cl_int _ciErr, const char *_sMsg, ...)
 {
     unsigned int uiDebug = 2;
@@ -150,6 +153,7 @@ void CheckOpenCLError(cl_int _ciErr, const char *_sMsg, ...)
 	}
 }
 
+//nacitanie zdrojoveho kodu  
 char* LoadProgSource(const char* cFilename)
 {
     FILE* pFileStream = NULL;
@@ -190,6 +194,7 @@ char* LoadProgSource(const char* cFilename)
     return cSourceString;
 }
 
+//Vypocet fault formation na GPU
 void faultFormationCl(int MATRIX_W, int MATRIX_H, float** height, int iter, float displacement){
     
     cl_int errNum;
@@ -200,6 +205,7 @@ void faultFormationCl(int MATRIX_W, int MATRIX_H, float** height, int iter, floa
 		computeFaultGpu(&gpu_device, MATRIX_W, MATRIX_H, displacement, &err_msg, &errNum, height, iter);
 }
 
+//Nacitanie zariadeni
 int myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int *err_msg){
     char tmp_buf[TMP_BUFFER_SIZE];
 
@@ -290,6 +296,7 @@ int myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int 
 	return 1;
 }
 
+//Vypocetna cast fault algoritmu
 void computeFaultGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float displacement, cl_int *err_msg, cl_int *errNum, float** height, int iteration)
 {
     cl_float *device_data = (cl_float *)malloc(sizeof(cl_float) * MATRIX_W * MATRIX_H);
@@ -395,7 +402,7 @@ void computeFaultGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float
     free(device_data);
 }
 
-
+// vypocet perlin noise na GPU
 void perlinNoiseCl(float persistence, int octaves, int MATRIX_W, int MATRIX_H, float** height){
 
 	cl_int errNum;
@@ -406,6 +413,7 @@ void perlinNoiseCl(float persistence, int octaves, int MATRIX_W, int MATRIX_H, f
 		computePerlinGpu(&gpu_device, MATRIX_W, MATRIX_H, persistence, octaves, &err_msg, &errNum, height);
 }
 
+//samotny vypocet perlin noise pomocou GPU
 void computePerlinGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float persistence, int octaves, cl_int *err_msg, cl_int *errNum, float** height)
 {
 	cl_float *device_data = (cl_float *)malloc(sizeof(cl_float) * MATRIX_W * MATRIX_H);
