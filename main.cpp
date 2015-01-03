@@ -15,13 +15,13 @@
 #define WIN_SIZE_H 600
 
 #define MAP_SIZE 256
-#define ITERATIONS 4096
+#define ITERATIONS 2048
 
 #define PERSISTENCE 1.5
 #define OCTAVES 8
 
 #define STEP 1
-#define DISPLACEMENT 0.20
+#define DISPLACEMENT 0.30
 
 # define GLUT_WHEEL_UP 3
 # define GLUT_WHEEL_DOWN 4
@@ -29,6 +29,7 @@
 //declaration
 GLuint LoadGLTexture( const char * filename );
 GLuint LoadTexture(const char * filename);
+void resetMatrix(float **height, int width, int length);
 
 //Static data
 GLuint texture;
@@ -64,17 +65,19 @@ int window;
 /* A general OpenGL initialization function.  Sets all of the initial parameters. */
 void InitGL(int Width, int Height)              // We call this right after our OpenGL window is created.
 {
-    glEnable(GL_TEXTURE_2D);                        // Zapne mapování textur
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);         // This Will Clear The Background Color To Black
-    glClearDepth(1.0);                            // Enables Clearing Of The Depth Buffer
-    glDepthFunc(GL_LEQUAL);                         // The Type Of Depth Test To Do
-    glEnable(GL_DEPTH_TEST);                      // Enables Depth Testing
+	#ifdef USE_SOIL
+		glEnable(GL_TEXTURE_2D);                        // Zapne mapování textur
+		glEnable(GL_DEPTH_TEST);                      // Enables Depth Testing
+		glDepthFunc(GL_LEQUAL);                         // The Type Of Depth Test To Do
+		glClearDepth(1.0);                            // Enables Clearing Of The Depth Buffer
+	#endif
+    
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);         // This Will Clear The Background Color To Black
     glShadeModel(GL_SMOOTH);                      // Enables Smooth Color Shading
 
 	#ifdef USE_SOIL
-	texture = LoadGLTexture("./grassTexture.bmp");
+		texture = LoadGLTexture("./grassTexture.bmp");
 	#endif // USE_SOIL
-
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();                             // Reset The Projection Matrix
@@ -136,97 +139,31 @@ void  DrawGLScene()// Vykreslování
         
 	// Sem kreslit
 	glPushMatrix();
-        for (int ix = 0; ix < MAP_SIZE-1; ix++) {
-            for (int iz = 0; iz < MAP_SIZE-1; iz++) {
-                glColor3f(0.2f,1.0f,0.2f);		
-                glBegin(GL_QUADS);
-                    glTexCoord2f(0.0f, 0.0f);
-                    glVertex3f( (float)ix-HALF_SIZE, height[ix][iz]    , (float)iz-HALF_SIZE );
+	for (int ix = 0; ix < mapsize - 1; ix++) {
+		for (int iz = 0; iz < mapsize - 1; iz++) {
+            glColor3f(0.2f,1.0f,0.2f);		
+            glBegin(GL_QUADS);
+                glTexCoord2f(0.0f, 0.0f);
+                glVertex3f( (float)ix-HALF_SIZE, height[ix][iz]    , (float)iz-HALF_SIZE );
                     
-                    glTexCoord2f(0.3f, 0.0f);
-                    glVertex3f( (float)(ix+1)-HALF_SIZE, height[(ix+1)][iz]  , (float)iz-HALF_SIZE );
+                glTexCoord2f(0.3f, 0.0f);
+                glVertex3f( (float)(ix+1)-HALF_SIZE, height[(ix+1)][iz]  , (float)iz-HALF_SIZE );
                     
-                    glTexCoord2f(0.3f, 0.3f);
-                    glVertex3f( (float)(ix+1)-HALF_SIZE, height[(ix+1)][(iz+1)],(float)(iz + 1)-HALF_SIZE);
+                glTexCoord2f(0.3f, 0.3f);
+                glVertex3f( (float)(ix+1)-HALF_SIZE, height[(ix+1)][(iz+1)],(float)(iz + 1)-HALF_SIZE);
                     
-                    glTexCoord2f(0.0f, 0.3f);
-                    glVertex3f( (float)ix-HALF_SIZE, height[ix][(iz+1)]  ,(float) (iz + 1)-HALF_SIZE);
-                glEnd();
-            }
+                glTexCoord2f(0.0f, 0.3f);
+                glVertex3f( (float)ix-HALF_SIZE, height[ix][(iz+1)]  ,(float) (iz + 1)-HALF_SIZE);
+            glEnd();
         }
-		#ifndef USE_SOIL
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		#endif
-        glPopMatrix();
+    }
+	#ifndef USE_SOIL
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	#endif
+    glPopMatrix();
 
     // we need to swap the buffer to display our drawing.
     glutSwapBuffers();
-}
-
-
-void mouseButton(int button, int state, int x, int y) {
-
-	// only start motion if the left button is pressed
-	if (button == GLUT_LEFT_BUTTON) {
-
-		// when the button is released
-		if (state == GLUT_UP) {
-			angle += deltaAngle;
-            angle2 += gamaAngle;
-			xOrigin = -1;
-            yOrigin = -1;
-		}
-		else  {// state = GLUT_DOWN
-			xOrigin = x;
-            yOrigin = y;
-		}
-	}
-        
-        if (button == GLUT_RIGHT_BUTTON) {
-
-		// when the button is released
-		if (state == GLUT_UP) {
-			yOriginStraight = -1;
-            xOriginStraight = -1;
-		}
-		else  {// state = GLUT_DOWN
-			yOriginStraight = y;
-            xOriginStraight = x;
-		}
-	}
-        
-        if(button == GLUT_WHEEL_UP) {
-            tz += 1;
-        }
-        
-        if(button == GLUT_WHEEL_DOWN) {
-            tz -= 1;
-        }
-}
-
-void mouseMove(int mx, int my) {
-
-	// this will only be true when the left button is down
-	if (xOrigin >= 0) {
-
-		// update deltaAngle
-		deltaAngle = (mx - xOrigin) * 0.002f;
-        gamaAngle = (my - yOrigin) * 0.002f;
-
-		// update camera's direction
-		lx = sin(angle + deltaAngle);
-        ly = sin(angle2 + gamaAngle);
-		lz = -cos(angle + deltaAngle);
-        lz2 = -cos(angle2 + gamaAngle);
-	}
-        
-    // this will only be true when the left button is down
-	if (xOriginStraight >= 0) {
-
-		// update deltaAngle
-		stepX -= (mx-xOriginStraight) * 0.002f;
-        stepY += (my-yOriginStraight) * 0.002f;
-	}
 }
 
 float Cosine_Interpolate(float a, float b, float x)
@@ -242,6 +179,8 @@ void cpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
     float v;
     float a,b,d,c;
 	float displacement = DISPLACEMENT;
+
+	resetMatrix(height, w, l);
     
     for(int it = 0; it < iterationCount; it++){
         //one iteration
@@ -329,6 +268,8 @@ float point_PerlinNoise(float x, float y, float persistence, int octaves){
 
 //vypocet perlinovho sumu na CPU
 void cpu_PerlinNoise(float **matrix, int w, int l, float persistence, int octaves){
+	resetMatrix(matrix, w, l);
+
 	for (int iz = 0; iz < l; iz++)
 	{
 		for (int ix = 0; ix < w; ix++)
@@ -349,6 +290,14 @@ void createHeightMap(float ***height, int width, int length){
     }
 
 
+}
+
+//reset matice na 0
+void resetMatrix(float **height, int width, int length){
+	for (int i = 0; i < length; i++)
+	{
+		memset(height[i], 0, width*sizeof(float));
+	}
 }
 
 //uvolnenie alokovaneho miesta matice
@@ -414,9 +363,75 @@ void Keyboard(unsigned char key, int x, int y)
 	}
 }
 
+void mouseButton(int button, int state, int x, int y) {
+
+	// only start motion if the left button is pressed
+	if (button == GLUT_LEFT_BUTTON) {
+
+		// when the button is released
+		if (state == GLUT_UP) {
+			angle += deltaAngle;
+			angle2 += gamaAngle;
+			xOrigin = -1;
+			yOrigin = -1;
+		}
+		else  {// state = GLUT_DOWN
+			xOrigin = x;
+			yOrigin = y;
+		}
+	}
+
+	if (button == GLUT_RIGHT_BUTTON) {
+
+		// when the button is released
+		if (state == GLUT_UP) {
+			yOriginStraight = -1;
+			xOriginStraight = -1;
+		}
+		else  {// state = GLUT_DOWN
+			yOriginStraight = y;
+			xOriginStraight = x;
+		}
+	}
+
+	if (button == GLUT_WHEEL_UP) {
+		tz += 1;
+	}
+
+	if (button == GLUT_WHEEL_DOWN) {
+		tz -= 1;
+	}
+}
+
+void mouseMove(int mx, int my) {
+
+	// this will only be true when the left button is down
+	if (xOrigin >= 0) {
+
+		// update deltaAngle
+		deltaAngle = (mx - xOrigin) * 0.002f;
+		gamaAngle = (my - yOrigin) * 0.002f;
+
+		// update camera's direction
+		lx = sin(angle + deltaAngle);
+		ly = sin(angle2 + gamaAngle);
+		lz = -cos(angle + deltaAngle);
+		lz2 = -cos(angle2 + gamaAngle);
+	}
+
+	// this will only be true when the left button is down
+	if (xOriginStraight >= 0) {
+
+		// update deltaAngle
+		stepX -= (mx - xOriginStraight) * 0.002f;
+		stepY += (my - yOriginStraight) * 0.002f;
+	}
+}
+
+
 int main(int argc, char **argv) {
 	//ulozenie argumentov
-	if (argc == 2)
+	if (argc == 3)
 	{
 		mapsize = atoi(argv[1]);
 		iterations = atoi(argv[2]);
@@ -426,25 +441,25 @@ int main(int argc, char **argv) {
 	
 	//Vypocet a casy
 	//Vypocita CPU Perlin Noise
-	double dtStart3 = GetTime();
-	cpu_PerlinNoise(height, mapsize, mapsize, PERSISTENCE , OCTAVES);
-	double dt3 = GetTime();
-	printf("all CPUPerlinNoise time: %f\n", dt3 - dtStart3);
-	//Vypocita GPU Perlin Noise
-	double dtStart4 = GetTime();
-	perlinNoiseCl(PERSISTENCE, OCTAVES, mapsize, mapsize, height);
-	double dt4 = GetTime();
-	printf("all GPUPerlinNoise time: %f\n", dt4 - dtStart4);
-	//Vypocita CPU Fault-formation
-	double dtStart = GetTime();
-	cpuFaultAlgorithm(height, mapsize, mapsize, iterations);
-	double dt = GetTime();
-	printf("all CPUFaultAlgorithm time: %f\n", dt - dtStart);
-	//Vypocita GPU Fault-formation
-	double dtStart2 = GetTime();
-	faultFormationCl(mapsize, mapsize, height, iterations, DISPLACEMENT);
-	double dt2 = GetTime();
-	printf("all GPUFaultAlgorithm time: %f\n",dt2 - dtStart2);
+	//double dtStart3 = GetTime();
+	//cpu_PerlinNoise(height, mapsize, mapsize, PERSISTENCE , OCTAVES);
+	//double dt3 = GetTime();
+	//printf("all CPUPerlinNoise time: %f\n", dt3 - dtStart3);
+	////Vypocita GPU Perlin Noise
+	//double dtStart4 = GetTime();
+	//perlinNoiseCl(PERSISTENCE, OCTAVES, mapsize, mapsize, height);
+	//double dt4 = GetTime();
+	//printf("all GPUPerlinNoise time: %f\n", dt4 - dtStart4);
+	////Vypocita CPU Fault-formation
+	//double dtStart = GetTime();
+	//cpuFaultAlgorithm(height, mapsize, mapsize, iterations);
+	//double dt = GetTime();
+	//printf("all CPUFaultAlgorithm time: %f\n", dt - dtStart);
+	////Vypocita GPU Fault-formation
+	//double dtStart2 = GetTime();
+	//faultFormationCl(mapsize, mapsize, height, iterations, DISPLACEMENT);
+	//double dt2 = GetTime();
+	//printf("all GPUFaultAlgorithm time: %f\n",dt2 - dtStart2);
 
 
     /* Initialize GLUT state - glut will take any command line arguments that pertain to it or 
