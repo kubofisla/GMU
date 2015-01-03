@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <cfloat>
 
 #include <GL/glut.h>     
 #include <GL/glu.h>     
@@ -15,7 +16,7 @@
 #define WIN_SIZE_H 600
 
 #define MAP_SIZE 256
-#define ITERATIONS 2048
+#define ITERATIONS 4096
 
 #define PERSISTENCE 1.5
 #define OCTAVES 8
@@ -30,6 +31,7 @@
 GLuint LoadGLTexture( const char * filename );
 GLuint LoadTexture(const char * filename);
 void resetMatrix(float **height, int width, int length);
+float PseudoRandom_NoiseI(int x, int y);
 
 //Static data
 GLuint texture;
@@ -174,6 +176,14 @@ float Cosine_Interpolate(float a, float b, float x)
 	return  a*(1.0f - f) + b*f;
 }
 
+
+float PseudoRandom_Noise2(int x)
+{
+	int n = x;
+	n = (n << 13) ^ n;
+	return (1.0 - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0);
+}
+
 void cpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
 {
     float v;
@@ -188,6 +198,7 @@ void cpuFaultAlgorithm(float **matrix, int w, int l, int iterationCount)
         a = sin(v);
         b = cos(v);
         d = sqrt((float)w*w + l*l);
+		c = (float)PseudoRandom_NoiseI((int)it, 1);
         // rand() / RAND_MAX gives a random number between 0 and 1.
         // therefore c will be a random number between -d/2 and d/2
         c = ((float)rand() / (float)RAND_MAX) * d - d/2;

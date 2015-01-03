@@ -34,4 +34,5 @@ void computeFaultGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float
 
 void computePerlinGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float persistence, int octaves, cl_int *err_msg, cl_int *errNum, float** height);
 void perlinNoiseCl(float persistence, int octaves, int MATRIX_W, int MATRIX_H, float** height);
+void random_save(int *rand_array, int size);
 

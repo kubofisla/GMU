@@ -296,6 +296,13 @@ int myClLoadDevice(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, cl_int 
 	return 1;
 }
 
+void random_save(int *rand_array, float *rand_array2, int size){
+	for (int ik = 0; ik < size; ik++) {
+		rand_array[ik] = rand();
+		rand_array2[ik] = (float)rand() / (float)RAND_MAX;
+	}
+}
+
 //Vypocetna cast fault algoritmu
 void computeFaultGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float displacement, cl_int *err_msg, cl_int *errNum, float** height, int iteration)
 {
@@ -317,8 +324,8 @@ void computeFaultGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float
     CheckOpenCLError(*err_msg,"clCreateProgramWithSource");
 
     // build program
-    CheckOpenCLError(clBuildProgram(program, 1, gpu_device, "", NULL, NULL),"clBuildProgram");
-
+    //CheckOpenCLError(clBuildProgram(program, 1, gpu_device, "", NULL, NULL),"clBuildProgram");
+	clBuildProgram(program, 1, gpu_device, "", NULL, NULL), "clBuildProgram";
 	char *build_log;
 
 	size_t ret_val_size;
@@ -335,51 +342,46 @@ void computeFaultGpu(cl_device_id *gpu_device, int MATRIX_W, int MATRIX_H, float
 
 	double dtStart = GetTime();
 
-	for (int it = 0; it < iteration; it++){
-		//one iteration
-		float v = rand();
-		float a = sin(v);
-		float b = cos(v);
-		float d = sqrt((float)MATRIX_W*MATRIX_W + MATRIX_H*MATRIX_H);
-		// rand() / RAND_MAX gives a random number between 0 and 1.
-		// therefore c will be a random number between -d/2 and d/2
-		float c = ((float)rand() / (float)RAND_MAX) * d - d / 2;
+	int *randomArray1 = (int*)malloc(iteration*sizeof(int));
+	float *randomArray2 = (float*)malloc(iteration*sizeof(float));
 
-		/*Buffers*/
-		cl_mem h_buffer;
+	random_save(randomArray1, randomArray2, iteration);
 
-		h_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, MATRIX_H*MATRIX_W*sizeof(cl_float), device_data, errNum);
+	/*Buffers*/
+	cl_mem h_buffer;
+	cl_mem r1_buffer;
+	cl_mem r2_buffer;
 
-		cl_int matrix_width = MATRIX_W;
-		//cl_int matrix_height = MATRIX_H;
+	h_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, MATRIX_H*MATRIX_W*sizeof(cl_float), device_data, errNum);
+	r1_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, iteration*sizeof(cl_int), randomArray1, errNum);
+	r2_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, iteration*sizeof(cl_float), randomArray2, errNum);
 
-		cl_float a_param = a;
-		cl_float b_param = b;
-		cl_float c_param = c;
-		cl_float disp_param = displacement;
+	cl_int matrix_width = MATRIX_W;
+	//cl_int matrix_height = MATRIX_H;
 
-		/*Parametry*/
-		clSetKernelArg(kernel, 0, sizeof(h_buffer), &h_buffer);
-		clSetKernelArg(kernel, 1, sizeof(a_param), &a_param);
-		clSetKernelArg(kernel, 2, sizeof(b_param), &b_param);
-		clSetKernelArg(kernel, 3, sizeof(c_param), &c_param);
-		clSetKernelArg(kernel, 4, sizeof(disp_param), &disp_param);
-		clSetKernelArg(kernel, 5, sizeof(matrix_width), &matrix_width);
-		//clSetKernelArg(kernel, 6, sizeof(matrix_height), &matrix_height);
+	cl_float i_param = iteration;
+	cl_float disp_param = displacement;
 
-		size_t local[2] = { 16, 16 };
-		size_t global[2] = { MATRIX_W, MATRIX_H };
+	/*Parametry*/
+	clSetKernelArg(kernel, 0, sizeof(h_buffer), &h_buffer);
+	clSetKernelArg(kernel, 1, sizeof(r1_buffer), &r1_buffer);
+	clSetKernelArg(kernel, 2, sizeof(r2_buffer), &r2_buffer);
+	clSetKernelArg(kernel, 3, sizeof(i_param), &i_param);
+	clSetKernelArg(kernel, 4, sizeof(disp_param), &disp_param);
+	clSetKernelArg(kernel, 5, sizeof(matrix_width), &matrix_width);
+	//clSetKernelArg(kernel, 6, sizeof(matrix_height), &matrix_height);
 
-		clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, NULL);
+	size_t local[2] = { 16, 16 };
+	size_t global[2] = { MATRIX_W, MATRIX_H };
 
-		clEnqueueReadBuffer(queue, h_buffer, CL_FALSE, 0, MATRIX_W*MATRIX_H*sizeof(cl_int), device_data, 0, NULL, NULL);
+	clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local, 0, NULL, NULL);
 
-		// synchronize queue
-		CheckOpenCLError(clFinish(queue), "clFinish");
+	clEnqueueReadBuffer(queue, h_buffer, CL_FALSE, 0, MATRIX_W*MATRIX_H*sizeof(cl_int), device_data, 0, NULL, NULL);
 
-		clReleaseMemObject(h_buffer);
+	// synchronize queue
+	CheckOpenCLError(clFinish(queue), "clFinish");
 
-	}
+	clReleaseMemObject(h_buffer);
 
 	//copy result
 	for (int z = 0; z < MATRIX_H; z++){
